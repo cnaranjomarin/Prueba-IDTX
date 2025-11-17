@@ -12,6 +12,7 @@ import com.inditex.similarproducts.application.SimilarProductService;
 import com.inditex.similarproducts.domain.model.ProductDetail;
 
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,12 +26,12 @@ public class SimilarProductsController {
 	}
 
 	@GetMapping("/{productId}/similar")
-	public ResponseEntity<List<ProductDetail>> getSimilarProducts(@PathVariable("productId") String productId) {
-		try {
-			List<ProductDetail> result = service.getSimilarProducts(productId);
-			return ResponseEntity.ok(result);
-		} catch (Exception e) {
-			return ResponseEntity.notFound().build();
-		}
+	public Mono<ResponseEntity<List<ProductDetail>>> getSimilarProducts(@PathVariable("productId") String productId) {
+
+		return service.getSimilarProducts(productId).map(list -> ResponseEntity.ok(list))
+				.filter(response -> !response.getBody().isEmpty())
+				.switchIfEmpty(Mono.just(ResponseEntity.notFound().build()))
+				.onErrorResume(e -> Mono.just(ResponseEntity.notFound().build()));
+
 	}
 }

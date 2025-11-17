@@ -1,79 +1,82 @@
 package com.inditex.similarproducts.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import com.inditex.similarproducts.domain.model.ProductDetail;
 import com.inditex.similarproducts.domain.port.ProductExternalPort;
 
-class SimilarProductServiceTest {
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
-	private final ProductExternalPort externalPort = mock(ProductExternalPort.class);
-	private final SimilarProductService service = new SimilarProductService(externalPort);
+public class SimilarProductServiceTest {
 
-	@Test
-	void returnsSimilarProductsCorrectly() {
+	@Mock
+	private ProductExternalPort externalPort;
 
-		when(externalPort.getSimilarProductIds("1")).thenReturn(List.of("2", "3", "4"));
+	private SimilarProductService service;
 
-		when(externalPort.getProductDetail("2")).thenReturn(new ProductDetail("2", "Dress", 19.99, true));
-
-		when(externalPort.getProductDetail("3")).thenReturn(new ProductDetail("3", "Blazer", 29.99, false));
-
-		when(externalPort.getProductDetail("4")).thenReturn(new ProductDetail("4", "Boots", 39.99, true));
-
-		List<ProductDetail> result = service.getSimilarProducts("1");
-
-		assertThat(result).hasSize(3);
-		assertThat(result).extracting("id").containsExactly("2", "3", "4");
-
-		verify(externalPort).getSimilarProductIds("1");
-		verify(externalPort).getProductDetail("2");
-		verify(externalPort).getProductDetail("3");
-		verify(externalPort).getProductDetail("4");
+	@BeforeEach
+	void setup() {
+		MockitoAnnotations.openMocks(this);
+		service = new SimilarProductService(externalPort);
 	}
 
 	@Test
-	void filtersNullProducts() {
-		when(externalPort.getSimilarProductIds("1")).thenReturn(List.of("2", "3"));
+	void whenSimilarProductsExist_thenReturnList() {
 
-		when(externalPort.getProductDetail("2")).thenReturn(new ProductDetail("2", "Item", 10.0, true));
+		String productId = "1";
 
-		when(externalPort.getProductDetail("3")).thenReturn(null);
+		ProductDetail p1 = new ProductDetail("2", "Shirt", 20.0, true);
+		ProductDetail p2 = new ProductDetail("3", "Jeans", 40.0, true);
 
-		List<ProductDetail> result = service.getSimilarProducts("1");
+		when(externalPort.getSimilarProductIds(productId)).thenReturn(Flux.just("2", "3"));
 
-		assertThat(result).hasSize(1);
-		assertThat(result.get(0).id()).isEqualTo("2");
+		when(externalPort.getProductDetail("2")).thenReturn(Mono.just(p1));
+
+		when(externalPort.getProductDetail("3")).thenReturn(Mono.just(p2));
+
+		StepVerifier.create(service.getSimilarProducts(productId)).expectNext(List.of(p1, p2)).verifyComplete();
 	}
 
 	@Test
-	void returnsEmptyListIfNoSimilarIds() {
-		when(externalPort.getSimilarProductIds("1")).thenReturn(List.of());
+	void whenSomeProductsNotFound_thenReturnOnlyExisting() {
 
-		List<ProductDetail> result = service.getSimilarProducts("1");
+		String productId = "1";
 
-		assertThat(result).isEmpty();
+		ProductDetail p1 = new ProductDetail("2", "Shirt", 20.0, true);
+
+		when(externalPort.getSimilarProductIds(productId)).thenReturn(Flux.just("2", "3"));
+
+		when(externalPort.getProductDetail("2")).thenReturn(Mono.just(p1));
+
+		// Producto 3 no existe
+		when(externalPort.getProductDetail("3")).thenReturn(Mono.empty());
+
+		StepVerifier.create(service.getSimilarProducts(productId)).expectNext(List.of(p1)).verifyComplete();
 	}
 
 	@Test
-	void ignoresProductsNotFound() {
-		when(externalPort.getSimilarProductIds("1")).thenReturn(List.of("2", "999"));
+	void whenNoSimilarProducts_thenReturnEmptyList() {
 
-		when(externalPort.getProductDetail("2")).thenReturn(new ProductDetail("2", "Dress", 19.99, true));
+		when(externalPort.getSimilarProductIds("10")).thenReturn(Flux.empty());
 
-		when(externalPort.getProductDetail("999")).thenReturn(null);
-
-		List<ProductDetail> result = service.getSimilarProducts("1");
-
-		assertThat(result).hasSize(1);
-		assertThat(result.get(0).id()).isEqualTo("2");
+		StepVerifier.create(service.getSimilarProducts("10")).expectNext(List.of()) // lista vacía
+				.verifyComplete();
 	}
 
+	@Test
+	void whenErrorOccurs_thenPropagateError() {
+
+		when(externalPort.getSimilarProductIds("99")).thenReturn(Flux.error(new RuntimeException("backend error")));
+
+		StepVerifier.create(service.getSimilarProducts("99")).expectError(RuntimeException.class).verify();
+	}
 }
