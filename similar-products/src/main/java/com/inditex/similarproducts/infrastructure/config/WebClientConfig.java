@@ -7,23 +7,17 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import io.netty.channel.ChannelOption;
-import io.netty.handler.timeout.ReadTimeoutHandler;
-import io.netty.handler.timeout.WriteTimeoutHandler;
 import reactor.netty.http.client.HttpClient;
 
 @Configuration
 public class WebClientConfig {
 
 	@Bean
-	public WebClient webClient(WebClient.Builder builder) {
+	public WebClient productWebClient(WebClient.Builder builder) {
+		return builder.baseUrl("http://localhost:3001").clientConnector(
+				new ReactorClientHttpConnector(HttpClient.create().responseTimeout(Duration.ofMillis(2000))
 
-		HttpClient httpClient = HttpClient.create().compress(true).followRedirect(true)
-				.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 500).responseTimeout(Duration.ofSeconds(1))
-				.doOnConnected(conn -> conn.addHandlerLast(new ReadTimeoutHandler(1))
-						.addHandlerLast(new WriteTimeoutHandler(1)));
-
-		return builder.clientConnector(new ReactorClientHttpConnector(httpClient)).baseUrl("http://localhost:3001")
-				.build();
+				)).build();
 	}
+
 }
