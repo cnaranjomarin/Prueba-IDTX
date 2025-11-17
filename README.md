@@ -31,3 +31,50 @@ The following topics will be considered:
 - Code clarity and maintainability
 - Performance
 - Resilience
+
+## Solution – Similar Products API
+This project implements the required endpoint:
+GET /product/{productId}/similar
+It returns detailed information about similar products using the APIs provided by the mock server.
+##Architecture
+Hexagonal (ports & adapters):
+
+## Technologies:
+- Java 17
+- spring Boot 3
+- WebFlux
+- Project Reactor
+- WebClient
+
+## Implementation Summary
+
+### WebClient
+Configured with connection and read/write timeouts (500ms) to ensure resilience and non-blocking behavior.
+
+### Service
+Business logic implemented with WebFlux:
+- Retrieves similar product IDs
+- Fetches product details in parallel
+- Fully reactive (no blocking)
+- Handles:
+  - 200 success
+  - 404 not found
+  - 500 external errors
+
+### Controller
+Maps domain results to the correct HTTP responses.
+
+## Running the Application
+### Build
+mvn clean package -DskipTests
+
+### Run
+java -jar similar-products/target/similar-products-1.0-SNAPSHOT.jar
+
+
+Endpoint available at:
+http://localhost:5000/product/{productId}/similar
+
+
+Example:
+[http://localhost:5000/product/1/similar](http://localhost:5000/product/1/similar).
