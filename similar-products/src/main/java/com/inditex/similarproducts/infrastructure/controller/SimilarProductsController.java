@@ -25,7 +25,7 @@ public class SimilarProductsController {
 	}
 
 	@GetMapping("/{productId}/similar")
-	public ResponseEntity<List<ProductDetail>> getSimilarProducts(@PathVariable String productId) {
+	public ResponseEntity<List<ProductDetail>> getSimilarProducts(@PathVariable("productId") String productId) {
 		try {
 			List<ProductDetail> result = service.getSimilarProducts(productId);
 			return ResponseEntity.ok(result);
